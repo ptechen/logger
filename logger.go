@@ -284,6 +284,7 @@ func (p *LogParams) initFile() {
 		logger.Err(err).Str("init_file", "failed").Msgf("%#v",p.logfile)
 		panic("create log file failed")
 	}
+	fmt.Println("success")
 	logger.Info().Str("init_file", "success").Msgf("%#v",p.logfile)
 }
 
