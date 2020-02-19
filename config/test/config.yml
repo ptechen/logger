@@ -1,9 +1,9 @@
 log:
   level: -1
-  color: true
-  isconsole: false
-  filepath: "log.log"
+  color: false
+  is_console: false
+  file_path: "log.log"
   caller: true
-  servername: "test"
-  timefieldformat: "2006-01-02 15:04:05"
+  server_name: "test"
+  time_field_format: "2006-01-02 15:04:05"
   default: true

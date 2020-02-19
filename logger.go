@@ -11,19 +11,19 @@ import (
 	"sync"
 	"time"
 )
+
 var (
-	dailyRolling bool = true
+	dailyRolling        bool = true
 	checkMustRenameTime int64
-	maxFileCount int32
-	maxFileSize int64 = 1024
-	logParams *LogParams
-	once sync.Once
-	onceLog sync.Once
-	logger zerolog.Logger
+	maxFileCount        int32
+	maxFileSize         int64 = 1024
+	logParams           *LogParams
+	once                sync.Once
+	onceLog             sync.Once
+	logger              *zerolog.Logger
 )
 
 const (
-
 	DATEFORMAT = "2006-01-02"
 
 	TimeFormatDefault = time.RFC3339
@@ -41,14 +41,14 @@ const (
 )
 
 type LogParams struct {
-	Level           int8   `json:"level"`
-	Color           bool   `json:"color"`
-	FilePath        string `json:"file_path"`
-	IsConsole       bool   `json:"is_console"`
-	TimeFieldFormat string `json:"time_field_format"`
-	Caller          bool   `json:"caller"`
-	ServerName      string `json:"server_name"`
-	Default         bool   `json:"default"`
+	Level           int8   `yaml:"level" toml:"level"`
+	Color           bool   `yaml:"color" toml:"color"`
+	FilePath        string `yaml:"file_path" toml:"file_path"`
+	IsConsole       bool   `yaml:"is_console" toml:"is_console"`
+	TimeFieldFormat string `yaml:"time_field_format" toml:"time_field_format"`
+	Caller          bool   `yaml:"caller" toml:"caller"`
+	ServerName      string `yaml:"server_name" toml:"server_name"`
+	Default         bool   `yaml:"default" toml:"default"`
 	_suffix         int
 	_date           *time.Time
 	mu              *sync.RWMutex
@@ -173,27 +173,27 @@ func (p *LogParams) output() {
 		w := diode.NewWriter(p.logfile, 10000, 10*time.Millisecond, func(missed int) {
 			logger.Warn().Msgf("Logger Dropped %d messages", missed)
 		})
-		logger = logger.Output(w).Level(zerolog.Level(p.Level))
+		*logger = (logger.Output(w)).Level(zerolog.Level(p.Level))
 	}
 
 	if p.IsConsole {
 		if p.Color {
-			logger = logger.Output(zerolog.ConsoleWriter{Out: os.Stdout}).Level(zerolog.Level(p.Level))
+			*logger = logger.Output(zerolog.ConsoleWriter{Out: os.Stdout}).Level(zerolog.Level(p.Level))
 		} else {
-			logger = logger.Output(os.Stdout).Level(zerolog.Level(p.Level))
+			*logger = logger.Output(os.Stdout).Level(zerolog.Level(p.Level))
 		}
 	}
 }
 
 func (p *LogParams) caller() {
 	if p.Caller {
-		logger = logger.With().Caller().Logger()
+		*logger = logger.With().Caller().Logger()
 	}
 }
 
-func (p *LogParams) InitLog() zerolog.Logger {
+func (p *LogParams) InitLog() *zerolog.Logger {
 	onceLog.Do(func() {
-		logger = log.Logger
+		logger = &log.Logger
 		p.setFileName()
 		p.caller()
 		p.output()
@@ -202,7 +202,7 @@ func (p *LogParams) InitLog() zerolog.Logger {
 	go func() {
 		for {
 			select {
-			case <- t.C:
+			case <-t.C:
 				must := p.isMustRename()
 				if must {
 					p.rename()
@@ -212,7 +212,6 @@ func (p *LogParams) InitLog() zerolog.Logger {
 	}()
 	return logger
 }
-
 
 func (p *LogParams) isMustRename() bool {
 	now := time.Now()
@@ -252,9 +251,8 @@ func (p *LogParams) rename() {
 			if err != nil {
 				logger.Err(err).Msg("rename log file failed")
 			}
-
-			p.initFile()
 			maxFileCount += 1
+			p.output()
 		}
 	} else {
 		p.coverNextOne()
@@ -281,11 +279,11 @@ func (p *LogParams) initFile() {
 	var err error
 	p.logfile, err = os.OpenFile(p.FilePath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
 	if err != nil {
-		logger.Err(err).Str("init_file", "failed").Msgf("%#v",p.logfile)
+		logger.Err(err).Str("init_file", "failed").Msgf("%#v", p.logfile)
 		panic("create log file failed")
 	}
 	fmt.Println("success")
-	logger.Info().Str("init_file", "success").Msgf("%#v",p.logfile)
+	logger.Info().Str("init_file", "success").Msgf("%#v", p.logfile)
 }
 
 func fileSize(file string) int64 {
