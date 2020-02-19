@@ -7,7 +7,6 @@ import (
 	"github.com/rs/zerolog/diode"
 	"github.com/rs/zerolog/log"
 	"os"
-	"strconv"
 	"sync"
 	"time"
 )
@@ -43,7 +42,9 @@ const (
 type LogParams struct {
 	Level           int8   `yaml:"level" toml:"level"`
 	Color           bool   `yaml:"color" toml:"color"`
-	FilePath        string `yaml:"file_path" toml:"file_path"`
+	LogFilePath     string `yaml:"log_file_path" toml:"log_file_path"`
+	LogTimeFormat   string `yaml:"log_time_format" toml:"log_time_format"`
+	LogFileSize     int64  `yaml:"log_file_size" toml:"log_file_size"`
 	IsConsole       bool   `yaml:"is_console" toml:"is_console"`
 	TimeFieldFormat string `yaml:"time_field_format" toml:"time_field_format"`
 	Caller          bool   `yaml:"caller" toml:"caller"`
@@ -78,7 +79,7 @@ func New() *LogParams {
 		logParams = &LogParams{
 			Level:              -1,
 			Color:              false,
-			FilePath:           "log.log",
+			LogFilePath:        "log.log",
 			IsConsole:          true,
 			TimeFieldFormat:    "",
 			Caller:             true,
@@ -92,7 +93,7 @@ func New() *LogParams {
 }
 
 func (p *LogParams) New() *LogParams {
-	if p.FilePath == "" && p.IsConsole == false {
+	if p.LogFilePath == "" && p.IsConsole == false {
 		panic("config file err")
 	}
 	if p.Default {
@@ -114,8 +115,8 @@ func (p *LogParams) SetColor(color bool) *LogParams {
 	return p
 }
 
-func (p *LogParams) SetWriteFilePath(filePath string) *LogParams {
-	p.FilePath = filePath
+func (p *LogParams) SetWriteFilePath(logFilePath string) *LogParams {
+	p.LogFilePath = logFilePath
 	return p
 }
 
@@ -168,9 +169,9 @@ func (p *LogParams) setFileName() {
 }
 
 func (p *LogParams) output() {
-	if p.FilePath != "" && p.IsConsole == false {
+	if p.LogFilePath != "" && p.IsConsole == false {
 		p.initFile()
-		w := diode.NewWriter(p.logfile, 10000, 10*time.Millisecond, func(missed int) {
+		w := diode.NewWriter(p.logfile, 1000000, 10*time.Millisecond, func(missed int) {
 			logger.Warn().Msgf("Logger Dropped %d messages", missed)
 		})
 		*logger = (logger.Output(w)).Level(zerolog.Level(p.Level))
@@ -198,86 +199,76 @@ func (p *LogParams) InitLog() *zerolog.Logger {
 		p.caller()
 		p.output()
 	})
-	t := time.NewTicker(time.Second * 3)
-	go func() {
-		for {
-			select {
-			case <-t.C:
-				must := p.isMustRename()
-				if must {
-					p.rename()
-				}
-			}
-		}
-	}()
+
+	monitor(p)
 	return logger
 }
 
-func (p *LogParams) isMustRename() bool {
-	now := time.Now()
-	//3秒检查一次，不然太频繁
-	if checkMustRenameTime != 0 && now.Unix()-checkMustRenameTime < 3 {
-		return false
-	}
-	checkMustRenameTime = now.Unix()
-	//if dailyRolling {
-	//	t, _ := time.Parse(DATEFORMAT, now.Format(DATEFORMAT))
-	//	if t.After(*p._date) {
-	//		return true
-	//	}
-	//} else {
-	//	if maxFileCount > 1 {
-	//		if fileSize(p.FilePath) >= maxFileSize {
-	//			return true
-	//		}
-	//	}
-	//}
-	if fileSize(p.FilePath) >= maxFileSize {
-		return true
-	}
-	return false
-}
+//func (p *LogParams) isMustRename() bool {
+//	now := time.Now()
+//	//3秒检查一次，不然太频繁
+//	if checkMustRenameTime != 0 && now.Unix()-checkMustRenameTime < 3 {
+//		return false
+//	}
+//	checkMustRenameTime = now.Unix()
+//	//if dailyRolling {
+//	//	t, _ := time.Parse(DATEFORMAT, now.Format(DATEFORMAT))
+//	//	if t.After(*p._date) {
+//	//		return true
+//	//	}
+//	//} else {
+//	//	if maxFileCount > 1 {
+//	//		if fileSize(p.FilePath) >= maxFileSize {
+//	//			return true
+//	//		}
+//	//	}
+//	//}
+//	if fileSize(p.LogFilePath) >= maxFileSize {
+//		return true
+//	}
+//	return false
+//}
 
-func (p *LogParams) rename() {
-	if dailyRolling {
-		t, _ := time.Parse(DATEFORMAT, time.Now().Format(DATEFORMAT))
-		p._date = &t
-		fn := p.FilePath + p._date.Format(DATEFORMAT) + fmt.Sprintf("-%d", maxFileCount)
-		if !isExist(fn) {
-			if p.logfile != nil {
-				_ = p.logfile.Close()
-			}
-			err := os.Rename(p.FilePath, fn)
-			if err != nil {
-				logger.Err(err).Msg("rename log file failed")
-			}
-			maxFileCount += 1
-			p.output()
-		}
-	} else {
-		p.coverNextOne()
-	}
-}
+//func (p *LogParams) rename() {
+//	if dailyRolling {
+//		t, _ := time.Parse(DATEFORMAT, time.Now().Format(DATEFORMAT))
+//		p._date = &t
+//		fn := p.LogFilePath + p._date.Format(DATEFORMAT) + fmt.Sprintf("-%d", maxFileCount)
+//		if !isExist(fn) {
+//			if p.logfile != nil {
+//				_ = p.logfile.Close()
+//			}
+//			err := os.Rename(p.LogFilePath, fn)
+//			if err != nil {
+//				logger.Err(err).Msg("rename log file failed")
+//			}
+//			maxFileCount += 1
+//			p.output()
+//		}
+//	} else {
+//		p.coverNextOne()
+//	}
+//}
 
 func (p *LogParams) nextSuffix() int {
 	return int(p._suffix%int(maxFileCount) + 1)
 }
 
-func (p *LogParams) coverNextOne() {
-	p._suffix = p.nextSuffix()
-	if p.logfile != nil {
-		_ = p.logfile.Close()
-	}
-	if isExist(p.FilePath + "." + strconv.Itoa(int(p._suffix))) {
-		_ = os.Remove(p.FilePath + "." + strconv.Itoa(int(p._suffix)))
-	}
-	_ = os.Rename(p.FilePath, p.FilePath+"."+strconv.Itoa(int(p._suffix)))
-	p.initFile()
-}
+//func (p *LogParams) coverNextOne() {
+//	p._suffix = p.nextSuffix()
+//	if p.logfile != nil {
+//		_ = p.logfile.Close()
+//	}
+//	if isExist(p.LogFilePath + "." + strconv.Itoa(int(p._suffix))) {
+//		_ = os.Remove(p.LogFilePath + "." + strconv.Itoa(int(p._suffix)))
+//	}
+//	_ = os.Rename(p.LogFilePath, p.LogFilePath+"."+strconv.Itoa(int(p._suffix)))
+//	p.initFile()
+//}
 
 func (p *LogParams) initFile() {
 	var err error
-	p.logfile, err = os.OpenFile(p.FilePath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
+	p.logfile, err = os.OpenFile(p.LogFilePath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
 	if err != nil {
 		logger.Err(err).Str("init_file", "failed").Msgf("%#v", p.logfile)
 		panic("create log file failed")
@@ -293,8 +284,37 @@ func fileSize(file string) int64 {
 	}
 	return f.Size()
 }
+//
+//func isExist(path string) bool {
+//	_, err := os.Stat(path)
+//	return err == nil || os.IsExist(err)
+//}
 
-func isExist(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil || os.IsExist(err)
+func monitor(params *LogParams) {
+	t := time.NewTicker(time.Second * 1)
+	go func() {
+		for {
+			select {
+			case <- t.C:
+				logger.Info().Msg("check file size")
+				size := fileSize(params.LogFilePath)
+				logger.Info().Str("size", fmt.Sprintf("%d", size)).Msg("check file size")
+				if size > params.LogFileSize {
+					logger.Info().Msg("rename log file")
+					rename2File(params)
+					params.output()
+				}
+			}
+		}
+	}()
+}
+
+
+func rename2File(params *LogParams) {
+	now := time.Now()
+	if params.LogTimeFormat == "" {
+		params.LogTimeFormat = "2006-01-02 15:04:05"
+	}
+	newLogFileName := fmt.Sprintf("%s.%s", params.LogFilePath, now.Format(params.LogTimeFormat))
+	_ = os.Rename(params.LogFilePath, newLogFileName)
 }

@@ -3,7 +3,6 @@ package logger
 import (
 	"github.com/ptechen/config"
 	"testing"
-	"time"
 )
 
 type Config struct {
@@ -15,10 +14,7 @@ func TestLogger_Trace(t *testing.T) {
 	params := &Config{}
 	conf.ParseFile(&params)
 	log := params.Log.New().InitLog()
-	for i := 0; i < 100000; i ++{
-		if i % 1000 == 0 {
-			time.Sleep(time.Second)
-		}
+	for i := 0; i < 10000000; i ++{
 		log.Trace().
 			Str("foo", "bar").
 			Int("n", 123).

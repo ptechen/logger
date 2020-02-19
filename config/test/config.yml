@@ -2,7 +2,8 @@ log:
   level: -1
   color: false
   is_console: false
-  file_path: "log.log"
+  log_file_path: "log.log"
+  log_file_size: 1024
   caller: true
   server_name: "test"
   time_field_format: "2006-01-02 15:04:05"
