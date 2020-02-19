@@ -21,8 +21,6 @@ var (
 )
 
 const (
-	DATEFORMAT = "2006-01-02"
-
 	TimeFormatDefault = time.RFC3339
 	// TimeFormatUnix defines a time format that makes time fields to be
 	// serialized as Unix timestamp integers.
@@ -58,6 +56,7 @@ const (
 	Disabled
 )
 
+// LogParams is log config params.
 type LogParams struct {
 	// Log level
 	Level int8 `yaml:"level" toml:"level"`
@@ -98,6 +97,7 @@ type LogParams struct {
 	ErrorStackFieldName string `json:"error_stack_field_name"`
 }
 
+// New is create LogParams.
 func New() *LogParams {
 	once.Do(func() {
 		logParams = &LogParams{
@@ -118,6 +118,7 @@ func New() *LogParams {
 	return logParams
 }
 
+// InitParams is init LogParams.
 func (p *LogParams) InitParams() *LogParams {
 	if p.LogFilePath == "" && p.IsConsole == false {
 		panic("config file err")
