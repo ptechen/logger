@@ -201,9 +201,14 @@ func (p *LogParams) caller() {
 
 func (p *LogParams) initFile() {
 	var err error
+	times := 0
 lab:
 	p.logFile, err = os.OpenFile(p.LogFilePath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
 	if err != nil {
+		if times == 3 {
+			panic("create log file failed")
+		}
+		times += 1
 		logger.Err(err).Str("init_file", "failed").Msgf("%#v", p.logFile)
 		goto lab
 	}
@@ -225,13 +230,14 @@ func (p *LogParams) isExist() bool {
 
 func monitor(params *LogParams) {
 	t := time.NewTicker(time.Second * 3)
-	day := time.NewTicker(time.Hour * 24)
+	deleted := time.NewTicker(time.Hour * 24)
 
 	go func() {
 		defer t.Stop()
-		defer day.Stop()
+		defer deleted.Stop()
 		for {
 			select {
+
 			case <-t.C:
 				logger.Info().Msg("check file size")
 				isExist := params.isExist()
@@ -245,8 +251,9 @@ func monitor(params *LogParams) {
 					params.rename2File()
 					params.output()
 				}
-			case <-day.C:
 
+			case <-deleted.C:
+				params.deletedData()
 			}
 		}
 	}()
