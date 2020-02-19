@@ -4,3 +4,11 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/ptechen/logger)](https://goreportcard.com/report/github.com/ptechen/logger)
 [![codecov](https://codecov.io/gh/ptechen/logger/branch/master/graph/badge.svg)](https://codecov.io/gh/ptechen/logger)
 
+example:
+
+    import "github.com/ptechen/logger"
+    func main() {
+        data := logger.New()
+	    log := data.InitParams().InitLog()
+	    log.Info().Msg("Hello World")
+    }
