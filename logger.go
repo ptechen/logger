@@ -21,6 +21,7 @@ var (
 )
 
 const (
+	// TimeFormatDefault default time format 2006-01-02T15:04:05Z07:00
 	TimeFormatDefault = time.RFC3339
 	// TimeFormatUnix defines a time format that makes time fields to be
 	// serialized as Unix timestamp integers.
@@ -138,6 +139,7 @@ func (p *LogParams) setZeroTimeFieldFormat() *LogParams {
 	return p
 }
 
+// InitLog is init log.
 func (p *LogParams) InitLog() *zerolog.Logger {
 	onceLog.Do(func() {
 		logger = &log.Logger
