@@ -3,7 +3,8 @@ log:
   color: false
   is_console: false
   log_file_path: "log.log"
-  log_file_size: 1024
+  log_file_size: 1MB
+  write_chan_size: 999999
   caller: true
   server_name: "test"
   time_field_format: "2006-01-02 15:04:05"
