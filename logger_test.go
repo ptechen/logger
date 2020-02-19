@@ -1,52 +1,43 @@
 package logger
 
 import (
-	"github.com/ptechen/config"
 	"testing"
-	"time"
 )
 
-type Config struct {
-	Log *LogParams
+
+
+//
+//func BenchmarkLogParams_New(b *testing.B) {
+//	conf := config.Flag().SetEnv("test")
+//	params := &Config{}
+//	conf.ParseFile(&params)
+//	log := params.Log.SetLevel(TraceLevel).New().InitLog()
+//	for i := 0; i < b.N; i ++{
+//		log.Info().
+//			Str("foo", "bar").
+//			Int("n", i).
+//			Msg("hello world")
+//	}
+//}
+
+func TestNew(t *testing.T) {
+	data := New()
+	if data.IsConsole == false {
+		t.Error("New err")
+	}
+}
+
+func TestLogParams_InitParams(t *testing.T) {
+	data := New()
+	data = data.InitParams()
+	if data.LevelFieldName != "l" {
+		t.Error("InitParams err")
+	}
 }
 
 func TestLogParams_InitLog(t *testing.T) {
-	conf := config.Flag().SetEnv("test")
-	params := &Config{}
-	conf.ParseFile(&params)
-	log := params.Log.New().InitLog()
-	for i := 0; i < 100000; i ++{
-		if i % 1000 == 0 {
-			time.Sleep(time.Second)
-		}
-		log.Trace().
-			Str("foo", "bar").
-			Int("n", 123).
-			Msg("hello world")
-	}
-	// Output: {"l":"trace","foo":"bar","n":123,"msg":"hello world"}
+	data := New()
+	log := data.InitParams().InitLog()
+	log.Info().Msg("Hello World")
 }
 
-func BenchmarkLogParams_New(b *testing.B) {
-	conf := config.Flag().SetEnv("test")
-	params := &Config{}
-	conf.ParseFile(&params)
-	log := params.Log.New().InitLog()
-	for i := 0; i < b.N; i ++{
-		log.Trace().
-			Str("foo", "bar").
-			Int("n", i).
-			Msg("hello world")
-	}
-}
-
-//func TestLogParams_InitLog(t *testing.T) {
-//		conf := config.Flag().SetEnv("test")
-//		params := &Config{}
-//		conf.ParseFile(&params)
-//		log := params.Log.New().InitLog()
-//		log.Info().
-//			Str("foo", "bar").
-//			Int("n", 123).
-//			Msg("hello world")
-//}

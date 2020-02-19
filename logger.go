@@ -37,20 +37,46 @@ const (
 	TimeFormatUnixMicro = "UNIXMICRO"
 )
 
+const (
+	// TraceLevel defines trace log level.
+	TraceLevel = iota - 1
+	// DebugLevel defines debug log level.
+	DebugLevel
+	// InfoLevel defines info log level.
+	InfoLevel
+	// WarnLevel defines warn log level.
+	WarnLevel
+	// ErrorLevel defines error log level.
+	ErrorLevel
+	// FatalLevel defines fatal log level.
+	FatalLevel
+	// PanicLevel defines panic log level.
+	PanicLevel
+	// NoLevel defines an absent log level.
+	NoLevel
+	// Disabled disables the logger.
+	Disabled
+)
+
 type LogParams struct {
+	// Log level
 	Level           int8   `yaml:"level" toml:"level"`
+
+	// The terminal prints the log to enable the log color mode.
 	Color           bool   `yaml:"color" toml:"color"`
 	LogFilePath     string `yaml:"log_file_path" toml:"log_file_path"`
 	LogTimeFormat   string `yaml:"log_time_format" toml:"log_time_format"`
 	LogFileSize     string `yaml:"log_file_size" toml:"log_file_size"`
-	LogExpDays      int    `yaml:"log_exp_days" toml:"log_exp_days"`
 	logSize         int64  `json:"log_size"`
+	LogExpDays      int    `yaml:"log_exp_days" toml:"log_exp_days"`
 	WriteChanSize   int    `yaml:"write_chan_size" toml:"write_chan_size"`
 	IsConsole       bool   `yaml:"is_console" toml:"is_console"`
 	TimeFieldFormat string `yaml:"time_field_format" toml:"time_field_format"`
+	// Enables logging of file names and lines.
 	Caller          bool   `yaml:"caller" toml:"caller"`
-	ServerName      string `yaml:"server_name" toml:"server_name"`
+	// Enable the default configuration.
 	Default         bool   `yaml:"default" toml:"default"`
+	ServerName      string `yaml:"server_name" toml:"server_name"`
 	logFile         *os.File
 
 	// TimestampFieldName is the field name used for the timestamp field.
@@ -77,9 +103,11 @@ func New() *LogParams {
 		logParams = &LogParams{
 			Level:              -1,
 			Color:              false,
-			LogFilePath:        "log.log",
+			LogFilePath:        "./log/log.log",
 			IsConsole:          true,
 			TimeFieldFormat:    "",
+			WriteChanSize:      1000,
+			LogExpDays:         30,
 			Caller:             true,
 			TimestampFieldName: "t",
 			LevelFieldName:     "l",
@@ -90,7 +118,7 @@ func New() *LogParams {
 	return logParams
 }
 
-func (p *LogParams) New() *LogParams {
+func (p *LogParams) InitParams() *LogParams {
 	if p.LogFilePath == "" && p.IsConsole == false {
 		panic("config file err")
 	}
@@ -104,44 +132,24 @@ func (p *LogParams) New() *LogParams {
 	return p
 }
 
-func (p *LogParams) SetLevel(level int8) *LogParams {
-	p.Level = level
-	return p
-}
-
-func (p *LogParams) SetColor(color bool) *LogParams {
-	p.Color = color
-	return p
-}
-
-func (p *LogParams) SetWriteFilePath(logFilePath string) *LogParams {
-	p.LogFilePath = logFilePath
-	return p
-}
-
-func (p *LogParams) SetIsConsole(isConsole bool) *LogParams {
-	p.IsConsole = isConsole
-	return p
-}
-
-func (p *LogParams) SetTimeFieldFormat(timeFieldFormat string) *LogParams {
-	p.TimeFieldFormat = timeFieldFormat
-	return p
-}
-
-func (p *LogParams) SetZeroTimeFieldFormat() *LogParams {
+func (p *LogParams) setZeroTimeFieldFormat() *LogParams {
 	zerolog.TimeFieldFormat = p.TimeFieldFormat
 	return p
 }
 
-func (p *LogParams) SetCaller(caller bool) *LogParams {
-	p.Caller = caller
-	return p
+func (p *LogParams) InitLog() *zerolog.Logger {
+	onceLog.Do(func() {
+		logger = &log.Logger
+		p.setFileName()
+		p.caller()
+		p.output()
+	})
+	monitor(p)
+	return logger
 }
 
 func (p *LogParams) setFileName() {
-
-	p.SetZeroTimeFieldFormat()
+	p.setZeroTimeFieldFormat()
 
 	if p.TimestampFieldName != "" {
 		zerolog.TimestampFieldName = p.TimestampFieldName
@@ -191,25 +199,14 @@ func (p *LogParams) caller() {
 	}
 }
 
-func (p *LogParams) InitLog() *zerolog.Logger {
-	onceLog.Do(func() {
-		logger = &log.Logger
-		p.setFileName()
-		p.caller()
-		p.output()
-	})
-	monitor(p)
-	return logger
-}
-
 func (p *LogParams) initFile() {
 	var err error
+lab:
 	p.logFile, err = os.OpenFile(p.LogFilePath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
 	if err != nil {
 		logger.Err(err).Str("init_file", "failed").Msgf("%#v", p.logFile)
-		panic("create log file failed")
+		goto lab
 	}
-	fmt.Println("success")
 	logger.Info().Str("init_file", "success").Msgf("%#v", p.logFile)
 }
 
@@ -248,7 +245,7 @@ func monitor(params *LogParams) {
 					params.rename2File()
 					params.output()
 				}
-			case <- day.C:
+			case <-day.C:
 
 			}
 		}
