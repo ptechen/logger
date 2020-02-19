@@ -1,6 +1,7 @@
 package logger
 
 import (
+	// rely
 	_ "code.cloudfoundry.org/go-diodes"
 	"fmt"
 	"github.com/rs/zerolog"
