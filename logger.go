@@ -60,7 +60,7 @@ const (
 
 type LogParams struct {
 	// Log level
-	Level           int8   `yaml:"level" toml:"level"`
+	Level int8 `yaml:"level" toml:"level"`
 
 	// The terminal prints the log to enable the log color mode.
 	Color           bool   `yaml:"color" toml:"color"`
@@ -73,11 +73,11 @@ type LogParams struct {
 	IsConsole       bool   `yaml:"is_console" toml:"is_console"`
 	TimeFieldFormat string `yaml:"time_field_format" toml:"time_field_format"`
 	// Enables logging of file names and lines.
-	Caller          bool   `yaml:"caller" toml:"caller"`
+	Caller bool `yaml:"caller" toml:"caller"`
 	// Enable the default configuration.
-	Default         bool   `yaml:"default" toml:"default"`
-	ServerName      string `yaml:"server_name" toml:"server_name"`
-	logFile         *os.File
+	Default    bool   `yaml:"default" toml:"default"`
+	ServerName string `yaml:"server_name" toml:"server_name"`
+	logFile    *os.File
 
 	// TimestampFieldName is the field name used for the timestamp field.
 	TimestampFieldName string `json:"timestamp_field_name"`
