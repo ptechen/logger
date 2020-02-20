@@ -19,7 +19,7 @@ var (
 	logParams *LogParams
 	once      sync.Once
 	onceLog   sync.Once
-	logger    *zerolog.Logger
+	Logger    *zerolog.Logger
 )
 
 const (
@@ -64,26 +64,32 @@ const (
 type LogParams struct {
 	// Log level
 	Level int8 `yaml:"level" toml:"level"`
-
 	// The terminal prints the log to enable the log color mode.
-	Color                 bool   `yaml:"color" toml:"color"`
-	logFilePath           string `yaml:"log_file_path" toml:"log_file_path"`
+	LogColor              bool   `yaml:"log_color" toml:"log_color"`
+	logFilePath           string
+	// Directory where logs are saved.
 	LogPathDir            string `yaml:"log_path_dir" toml:"log_path_dir"`
+	// Log filename
 	LogFileName           string `yaml:"log_file_name" toml:"log_file_name"`
+	// The rename log file is in a date format.
 	LogFileNameTimeFormat string `yaml:"log_file_name_time_format" toml:"log_file_name_time_format"`
+	// Log file size ,example "1G" or "512MB"
 	LogFileSize           string `yaml:"log_file_size" toml:"log_file_size"`
-	logSize               int64  `json:"log_size"`
+	logSize               int64
+	// Number of days the log is kept.
 	LogExpDays            int64  `yaml:"log_exp_days" toml:"log_exp_days"`
-	WriteChanSize         int    `yaml:"write_chan_size" toml:"write_chan_size"`
+	// Log chan size.
+	LogChanSize           int    `yaml:"log_chan_size" toml:"log_chan_size"`
+	// Enable terminal print log.
 	IsConsole             bool   `yaml:"is_console" toml:"is_console"`
+	// Log time field format.
 	TimeFieldFormat       string `yaml:"time_field_format" toml:"time_field_format"`
 	// Enables logging of file names and lines.
 	Caller bool `yaml:"caller" toml:"caller"`
 	// Enable the default configuration.
 	Default    bool   `yaml:"default" toml:"default"`
-	ServerName string `yaml:"server_name" toml:"server_name"`
-	logFile    *os.File
 
+	logFile    *os.File
 	// TimestampFieldName is the field name used for the timestamp field.
 	TimestampFieldName string `json:"timestamp_field_name"`
 
@@ -108,10 +114,10 @@ func New() *LogParams {
 	once.Do(func() {
 		logParams = &LogParams{
 			Level:              -1,
-			Color:              false,
+			LogColor:              false,
 			logFilePath:        "./log/log.log",
 			IsConsole:          true,
-			WriteChanSize:      1000,
+			LogChanSize:      1000,
 			LogExpDays:         30,
 			Caller:             true,
 			TimestampFieldName: "t",
@@ -143,8 +149,8 @@ func (p *LogParams) InitParams() *LogParams {
 }
 
 func (p *LogParams) setWriteChanSize() {
-	if p.WriteChanSize == 0 {
-		p.WriteChanSize = 1000
+	if p.LogChanSize == 0 {
+		p.LogChanSize = 1000
 	}
 }
 
@@ -179,13 +185,13 @@ func (p *LogParams) setZeroTimeFieldFormat() *LogParams {
 // InitLog is init log.
 func (p *LogParams) InitLogger() *zerolog.Logger {
 	onceLog.Do(func() {
-		logger = &log.Logger
+		Logger = &log.Logger
 		p.setLogFieldsName()
 		p.caller()
 		p.output()
 	})
 	monitor(p)
-	return logger
+	return Logger
 }
 
 func (p *LogParams) setLogFieldsName() {
@@ -218,24 +224,24 @@ func (p *LogParams) setLogFieldsName() {
 func (p *LogParams) output() {
 	if p.logFilePath != "" && p.IsConsole == false {
 		p.initFile()
-		w := diode.NewWriter(p.logFile, p.WriteChanSize, 10*time.Millisecond, func(missed int) {
-			logger.Warn().Msgf("Logger Dropped %d messages", missed)
+		w := diode.NewWriter(p.logFile, p.LogChanSize, 10*time.Millisecond, func(missed int) {
+			Logger.Warn().Msgf("Logger Dropped %d messages", missed)
 		})
-		*logger = (logger.Output(w)).Level(zerolog.Level(p.Level))
+		*Logger = (Logger.Output(w)).Level(zerolog.Level(p.Level))
 	}
 
 	if p.IsConsole {
-		if p.Color {
-			*logger = logger.Output(zerolog.ConsoleWriter{Out: os.Stdout}).Level(zerolog.Level(p.Level))
+		if p.LogColor {
+			*Logger = Logger.Output(zerolog.ConsoleWriter{Out: os.Stdout}).Level(zerolog.Level(p.Level))
 		} else {
-			*logger = logger.Output(os.Stdout).Level(zerolog.Level(p.Level))
+			*Logger = Logger.Output(os.Stdout).Level(zerolog.Level(p.Level))
 		}
 	}
 }
 
 func (p *LogParams) caller() {
 	if p.Caller {
-		*logger = logger.With().Caller().Logger()
+		*Logger = Logger.With().Caller().Logger()
 	}
 }
 
@@ -249,10 +255,10 @@ lab:
 			panic("create log file failed")
 		}
 		times += 1
-		logger.Err(err).Str("init_file", "failed").Msgf("%#v", p.logFile)
+		Logger.Err(err).Str("init_file", "failed").Msgf("%#v", p.logFile)
 		goto lab
 	}
-	logger.Info().Str("init_file", "success").Msgf("%#v", p.logFile)
+	Logger.Info().Str("init_file", "success").Msgf("%#v", p.logFile)
 }
 
 func (p *LogParams) fileSize() int64 {
@@ -279,15 +285,15 @@ func monitor(params *LogParams) {
 			select {
 
 			case <-t.C:
-				logger.Info().Msg("check file size")
+				Logger.Info().Msg("check file size")
 				isExist := params.isExist()
 				if !isExist {
 					params.output()
 				}
 				size := params.fileSize()
-				logger.Info().Str("size", fmt.Sprintf("%d", size)).Msg("check file size")
+				Logger.Info().Str("size", fmt.Sprintf("%d", size)).Msg("check file size")
 				if size > params.logSize {
-					logger.Info().Msg("rename log file")
+					Logger.Info().Msg("rename log file")
 					params.rename2File()
 					params.output()
 				}
@@ -325,12 +331,12 @@ func (p *LogParams) deletedData() {
 		if file.IsDir() {
 			// DO
 		} else {
-			logger.Info().Msg(file.Name())
+			Logger.Info().Msg(file.Name())
 			if file.Name() != p.LogFileName && strings.Contains(file.Name(), p.LogFileName) {
 				createTime := strings.Split(file.Name(), p.LogFileName+".")[1]
 				date, err := time.Parse(p.LogFileNameTimeFormat, createTime)
 				if err != nil {
-					logger.Err(err).Msg("log file time format err")
+					Logger.Err(err).Msg("log file time format err")
 					continue
 				}
 				dateUnix := date.Unix()
@@ -339,9 +345,9 @@ func (p *LogParams) deletedData() {
 					currentFileName := p.LogPathDir + "/" + file.Name()
 					err = os.Remove(currentFileName)
 					if err != nil {
-						logger.Err(err).Msgf("remove %s failed", currentFileName)
+						Logger.Err(err).Msgf("remove %s failed", currentFileName)
 					}
-					logger.Info().Msgf("remove %s success", currentFileName)
+					Logger.Info().Msgf("remove %s success", currentFileName)
 				}
 			}
 		}
