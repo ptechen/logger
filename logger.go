@@ -7,6 +7,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/diode"
 	"github.com/rs/zerolog/log"
+	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -24,6 +25,7 @@ var (
 const (
 	// TimeFormatDefault default time format 2006-01-02T15:04:05Z07:00
 	TimeFormatDefault = time.RFC3339
+
 	// TimeFormatUnix defines a time format that makes time fields to be
 	// serialized as Unix timestamp integers.
 	TimeFormatUnix = ""
@@ -64,15 +66,17 @@ type LogParams struct {
 	Level int8 `yaml:"level" toml:"level"`
 
 	// The terminal prints the log to enable the log color mode.
-	Color           bool   `yaml:"color" toml:"color"`
-	LogFilePath     string `yaml:"log_file_path" toml:"log_file_path"`
-	LogTimeFormat   string `yaml:"log_time_format" toml:"log_time_format"`
-	LogFileSize     string `yaml:"log_file_size" toml:"log_file_size"`
-	logSize         int64  `json:"log_size"`
-	LogExpDays      int    `yaml:"log_exp_days" toml:"log_exp_days"`
-	WriteChanSize   int    `yaml:"write_chan_size" toml:"write_chan_size"`
-	IsConsole       bool   `yaml:"is_console" toml:"is_console"`
-	TimeFieldFormat string `yaml:"time_field_format" toml:"time_field_format"`
+	Color                 bool   `yaml:"color" toml:"color"`
+	logFilePath           string `yaml:"log_file_path" toml:"log_file_path"`
+	LogPathDir            string `yaml:"log_path_dir" toml:"log_path_dir"`
+	LogFileName           string `yaml:"log_file_name" toml:"log_file_name"`
+	LogFileNameTimeFormat string `yaml:"log_file_name_time_format" toml:"log_file_name_time_format"`
+	LogFileSize           string `yaml:"log_file_size" toml:"log_file_size"`
+	logSize               int64  `json:"log_size"`
+	LogExpDays            int64  `yaml:"log_exp_days" toml:"log_exp_days"`
+	WriteChanSize         int    `yaml:"write_chan_size" toml:"write_chan_size"`
+	IsConsole             bool   `yaml:"is_console" toml:"is_console"`
+	TimeFieldFormat       string `yaml:"time_field_format" toml:"time_field_format"`
 	// Enables logging of file names and lines.
 	Caller bool `yaml:"caller" toml:"caller"`
 	// Enable the default configuration.
@@ -105,9 +109,8 @@ func New() *LogParams {
 		logParams = &LogParams{
 			Level:              -1,
 			Color:              false,
-			LogFilePath:        "./log/log.log",
+			logFilePath:        "./log/log.log",
 			IsConsole:          true,
-			TimeFieldFormat:    "",
 			WriteChanSize:      1000,
 			LogExpDays:         30,
 			Caller:             true,
@@ -122,7 +125,7 @@ func New() *LogParams {
 
 // InitParams is init LogParams.
 func (p *LogParams) InitParams() *LogParams {
-	if p.LogFilePath == "" && p.IsConsole == false {
+	if p.logFilePath == "" && p.IsConsole == false {
 		panic("config file err")
 	}
 	if p.Default {
@@ -132,7 +135,40 @@ func (p *LogParams) InitParams() *LogParams {
 		p.LevelFieldName = "l"
 	}
 	p.parseLogFileSize()
+	p.setLogFilePath()
+	p.setLogExpDays()
+	p.setLogTimeFormat()
+	p.setWriteChanSize()
 	return p
+}
+
+func (p *LogParams) setWriteChanSize() {
+	if p.WriteChanSize == 0 {
+		p.WriteChanSize = 1000
+	}
+}
+
+func (p *LogParams) setLogTimeFormat() {
+	if p.LogFileNameTimeFormat == "" {
+		p.LogFileNameTimeFormat = "2006-01-02 15:04:05"
+	}
+}
+
+func (p *LogParams) setLogExpDays() {
+	if p.LogExpDays == 0 {
+		p.LogExpDays = 30
+	}
+}
+
+func (p *LogParams) setLogFilePath() {
+	if p.LogPathDir == "" {
+		p.LogPathDir = "/opt/log"
+	}
+
+	if p.LogFileName == "" {
+		p.LogFileName = "log.log"
+	}
+	p.logFilePath = p.LogPathDir + "/" + p.LogFileName
 }
 
 func (p *LogParams) setZeroTimeFieldFormat() *LogParams {
@@ -144,7 +180,7 @@ func (p *LogParams) setZeroTimeFieldFormat() *LogParams {
 func (p *LogParams) InitLog() *zerolog.Logger {
 	onceLog.Do(func() {
 		logger = &log.Logger
-		p.setFileName()
+		p.setLogFieldsName()
 		p.caller()
 		p.output()
 	})
@@ -152,7 +188,7 @@ func (p *LogParams) InitLog() *zerolog.Logger {
 	return logger
 }
 
-func (p *LogParams) setFileName() {
+func (p *LogParams) setLogFieldsName() {
 	p.setZeroTimeFieldFormat()
 
 	if p.TimestampFieldName != "" {
@@ -180,7 +216,7 @@ func (p *LogParams) setFileName() {
 }
 
 func (p *LogParams) output() {
-	if p.LogFilePath != "" && p.IsConsole == false {
+	if p.logFilePath != "" && p.IsConsole == false {
 		p.initFile()
 		w := diode.NewWriter(p.logFile, p.WriteChanSize, 10*time.Millisecond, func(missed int) {
 			logger.Warn().Msgf("Logger Dropped %d messages", missed)
@@ -207,7 +243,7 @@ func (p *LogParams) initFile() {
 	var err error
 	times := 0
 lab:
-	p.logFile, err = os.OpenFile(p.LogFilePath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
+	p.logFile, err = os.OpenFile(p.logFilePath, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
 	if err != nil {
 		if times == 3 {
 			panic("create log file failed")
@@ -220,7 +256,7 @@ lab:
 }
 
 func (p *LogParams) fileSize() int64 {
-	f, e := os.Stat(p.LogFilePath)
+	f, e := os.Stat(p.logFilePath)
 	if e != nil {
 		return 0
 	}
@@ -228,7 +264,7 @@ func (p *LogParams) fileSize() int64 {
 }
 
 func (p *LogParams) isExist() bool {
-	_, err := os.Stat(p.LogFilePath)
+	_, err := os.Stat(p.logFilePath)
 	return err == nil || os.IsExist(err)
 }
 
@@ -265,11 +301,8 @@ func monitor(params *LogParams) {
 
 func (p *LogParams) rename2File() {
 	now := time.Now()
-	if p.LogTimeFormat == "" {
-		p.LogTimeFormat = "2006-01-02 15:04:05"
-	}
-	newLogFileName := fmt.Sprintf("%s.%s", p.LogFilePath, now.Format(p.LogTimeFormat))
-	_ = os.Rename(p.LogFilePath, newLogFileName)
+	newLogFileName := fmt.Sprintf("%s.%s", p.logFilePath, now.Format(p.LogFileNameTimeFormat))
+	_ = os.Rename(p.logFilePath, newLogFileName)
 }
 
 func (p *LogParams) parseLogFileSize() {
@@ -287,5 +320,32 @@ func (p *LogParams) parseLogFileSize() {
 }
 
 func (p *LogParams) deletedData() {
+	files, _ := ioutil.ReadDir(p.LogPathDir)
+	for _, file := range files {
+		if file.IsDir() {
+
+		} else {
+			logger.Info().Msg(file.Name())
+			if file.Name() != p.LogFileName && strings.Contains(file.Name(), p.LogFileName) {
+				createTime := strings.Split(file.Name(), p.LogFileName+".")[1]
+				date, err := time.Parse(p.LogFileNameTimeFormat, createTime)
+				if err != nil {
+					logger.Err(err).Msg("log file time format err")
+					continue
+				}
+				dateUnix := date.Unix()
+				currentUnix := time.Now().Unix()
+				if currentUnix-dateUnix > p.LogExpDays*60*60*24 {
+					currentFileName := p.LogPathDir + "/" + file.Name()
+					err = os.Remove(currentFileName)
+					if err != nil {
+						logger.Err(err).Msgf("remove %s failed", currentFileName)
+					}
+					logger.Info().Msgf("remove %s success", currentFileName)
+				}
+			}
+
+		}
+	}
 
 }
