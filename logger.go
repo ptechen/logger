@@ -131,9 +131,6 @@ func New() *LogParams {
 
 // InitParams is init LogParams.
 func (p *LogParams) InitParams() *LogParams {
-	if p.logFilePath == "" && p.IsConsole == false {
-		panic("config file err")
-	}
 	if p.Default {
 		p.MessageFieldName = "msg"
 		p.ErrorFieldName = "err"
