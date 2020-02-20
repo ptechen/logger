@@ -323,7 +323,7 @@ func (p *LogParams) deletedData() {
 	files, _ := ioutil.ReadDir(p.LogPathDir)
 	for _, file := range files {
 		if file.IsDir() {
-
+			// DO
 		} else {
 			logger.Info().Msg(file.Name())
 			if file.Name() != p.LogFileName && strings.Contains(file.Name(), p.LogFileName) {
