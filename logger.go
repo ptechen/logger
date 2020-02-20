@@ -282,13 +282,11 @@ func monitor(params *LogParams) {
 			select {
 
 			case <-t.C:
-				Logger.Info().Msg("check file size")
 				isExist := params.isExist()
 				if !isExist {
 					params.output()
 				}
 				size := params.fileSize()
-				Logger.Info().Str("size", fmt.Sprintf("%d", size)).Msg("check file size")
 				if size > params.logSize {
 					Logger.Info().Msg("rename log file")
 					params.rename2File()
@@ -328,7 +326,6 @@ func (p *LogParams) deletedData() {
 		if file.IsDir() {
 			// DO
 		} else {
-			Logger.Info().Msg(file.Name())
 			if file.Name() != p.LogFileName && strings.Contains(file.Name(), p.LogFileName) {
 				createTime := strings.Split(file.Name(), p.LogFileName+".")[1]
 				date, err := time.Parse(p.LogFileNameTimeFormat, createTime)
