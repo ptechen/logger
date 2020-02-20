@@ -9,6 +9,6 @@ example:
     import "github.com/ptechen/logger"
     func main() {
         data := logger.New()
-	    log := data.InitParams().InitLog()
+	    log := data.InitParams().InitLogger()
 	    log.Info().Msg("Hello World")
     }

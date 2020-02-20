@@ -25,7 +25,7 @@ func TestLogParams_InitLog(t *testing.T) {
 	data.LogPathDir = "."
 	data.LogFileName = "log.log"
 	data.IsConsole = false
-	log := data.InitParams().InitLog()
+	log := data.InitParams().InitLogger()
 
 	for i := 0; i < 1000000; i++ {
 		if i%1000 == 0 {
