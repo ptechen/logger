@@ -2,7 +2,6 @@ package logger
 
 import (
 	"testing"
-	"time"
 )
 
 func TestNew(t *testing.T) {
@@ -26,12 +25,6 @@ func TestLogParams_InitLog(t *testing.T) {
 	data.LogFileName = "log.log"
 	data.IsConsole = false
 	log := data.InitParams().InitLogger()
+	log.Info().Msg("Hello World")
 
-	for i := 0; i < 1000000; i++ {
-		if i%1000 == 0 {
-			time.Sleep(time.Second)
-		}
-		log.Info().Msg("Hello World")
-
-	}
 }

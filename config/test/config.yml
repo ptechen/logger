@@ -1,6 +1,6 @@
 log:
   level: -1
-  color: false
+  log_color: false
   is_console: false
   log_file_path: "log.log"
   log_file_size: 1MB
