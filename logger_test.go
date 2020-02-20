@@ -27,8 +27,8 @@ func TestLogParams_InitLog(t *testing.T) {
 	data.IsConsole = false
 	log := data.InitParams().InitLog()
 
-	for i := 0; i < 1000000; i++{
-		if i % 1000 == 0 {
+	for i := 0; i < 1000000; i++ {
+		if i%1000 == 0 {
 			time.Sleep(time.Second)
 		}
 		log.Info().Msg("Hello World")

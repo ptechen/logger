@@ -344,7 +344,6 @@ func (p *LogParams) deletedData() {
 					logger.Info().Msgf("remove %s success", currentFileName)
 				}
 			}
-
 		}
 	}
 
