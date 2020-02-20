@@ -270,11 +270,11 @@ func (p *LogParams) isExist() bool {
 
 func monitor(params *LogParams) {
 	t := time.NewTicker(time.Second * 3)
-	deleted := time.NewTicker(time.Hour * 24)
+	delete := time.NewTicker(time.Hour * 24)
 
 	go func() {
 		defer t.Stop()
-		defer deleted.Stop()
+		defer delete.Stop()
 		for {
 			select {
 
@@ -292,7 +292,7 @@ func monitor(params *LogParams) {
 					params.output()
 				}
 
-			case <-deleted.C:
+			case <-delete.C:
 				params.deletedData()
 			}
 		}
@@ -346,5 +346,4 @@ func (p *LogParams) deletedData() {
 			}
 		}
 	}
-
 }
