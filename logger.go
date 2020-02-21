@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"bytes"
 	// depend
 	_ "code.cloudfoundry.org/go-diodes"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"io/ioutil"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -346,4 +348,16 @@ func (p *LogParams) deletedData() {
 			}
 		}
 	}
+}
+
+var l = len("goroutine ")
+
+func GoroutineID() string {
+	var buf [32]byte
+	n := runtime.Stack(buf[:], false)
+
+	b := bytes.NewBuffer(buf[l:n])
+	s, _ := b.ReadString(' ')
+
+	return strings.TrimSpace(s)
 }
